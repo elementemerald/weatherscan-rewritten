@@ -1,10 +1,13 @@
 /* https://github.com/joeiddon/perlin */
 
+/** @internal */
 type Memory = {
     [index: string]: number
 }
 
+/** @internal */
 const gradients: Memory = {};
+/** @internal */
 const memory: Memory = {};
 
 const perlin = {

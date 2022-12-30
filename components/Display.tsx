@@ -1,11 +1,23 @@
 import * as React from "react";
-import type { Location, CurrentCond, Alert } from "../hooks/useWeather";
+import {
+    TemperatureUnit,
+    Location,
+    ExtraLocation,
+    ExtraInfo,
+    CurrentCond,
+    CurrentConds,
+    Alert,
+    MarqueeLocation,
+    MarqueeCities
+} from "../hooks/useWeather";
 import {
     defaults,
     currentDefaults,
     getMainLocation,
     getClosestLocation,
+    getExtraLocations,
     getCurrentCond,
+    getExtraCond,
     getAlerts,
     getAlertText
 } from "../hooks/useWeather";
@@ -17,7 +29,10 @@ import CCIcon from "./CCIcon";
 import Current from "./Current";
 import LogoArea from "./LogoArea";
 import InfoMarquee from "./Marquee";
-import MarqueeSevere from "./MarqueeSevere";
+//import MarqueeSevere from "./MarqueeSevere";
+const MarqueeSevere = React.lazy(() => import(
+    "./MarqueeSevere" /* webpackChunkName: "marqueeSevere" */
+));
 
 const resizeWindow = (
     mainRef: React.MutableRefObject<HTMLDivElement>,
@@ -42,13 +57,26 @@ const resizeWindow = (
 
 interface DisplayProps {
     isReady: boolean
+    debug: boolean
     winSize: number[]
     location: string
     language: string
+    units: TemperatureUnit
+    muteSevere: boolean
     setMainVol: React.Dispatch<React.SetStateAction<number>>
 }
 
-const Display = ({ isReady, winSize, location, language, setMainVol }: DisplayProps) => {
+const Display = ({
+    isReady,
+    debug,
+    winSize,
+    location,
+    language,
+    units,
+    muteSevere,
+    setMainVol
+}: DisplayProps) => {
+    const [cityIntroLoaded, setCityIntroLoaded] = React.useState<boolean>(false);
     const [innerWidth, innerHeight] = winSize;
     const mainRef = React.useRef<HTMLDivElement>();
 
@@ -69,44 +97,92 @@ const Display = ({ isReady, winSize, location, language, setMainVol }: DisplayPr
 
     const [locInfo, setLocInfo] = React.useState<Partial<Location>>(defaults);
     const [currentInfo, setCurrentInfo] = React.useState<Partial<CurrentCond>>(currentDefaults);
+    const [currentExtra, setCurrentExtra] = React.useState<ExtraInfo>({
+        details: {
+            name: "",
+            lat: 0,
+            lon: 0
+        }
+    });
+    const [extraInfo, setExtraInfo] = React.useState<Map<string, ExtraInfo>>(new Map<string, ExtraInfo>());
 
     const [alerts, setAlerts] = React.useState<Alert[]>([]);
     const [focusedAlert, setFocusedAlert] = React.useState<Alert>(null);
     const [focusedAlertText, setFocusedAlertText] = React.useState<string>(null);
 
+    const [marqueeCities, setMarqueeCities] = React.useState<MarqueeLocation[]>(MarqueeCities);
+
     // Location handler
     React.useEffect(() => {
         if (isReady) {
             if (location !== "") {
-                getMainLocation(location, language).then(data => {
+                getMainLocation(location, { language }).then(data => {
                     setLocInfo(data);
-                }).catch(err => {
-                    console.error(err);
-                });
+                }).catch(err => console.error(err));
             } else {
                 getClosestLocation().then(data => {
                     setLocInfo(data);
-                }).catch(err => {
-                    console.error(err);
-                });
+                }).catch(err => console.error(err));
             }
         }
     }, [isReady, location]);
 
-    const fetchCurrent = (lat: number, lon: number) => {
-        getCurrentCond(lat, lon, language).then(data => {
-            setCurrentInfo(data);
-        }).catch(err => {
-            console.error(err);
+    const fetchCurrent = (lat: number, lon: number) : Promise<CurrentCond> => {
+        return new Promise((resolve, reject) => {
+            getCurrentCond(lat, lon, {
+                language,
+                units
+            }).then(data => {
+                setCurrentInfo(data);
+                resolve(data);
+            }).catch(err => reject(err));
         });
     };
 
-    const fetchAlerts = (lat: number, lon: number) => {
-        getAlerts(lat, lon, language).then(data => {
-            setAlerts(data);
-        }).catch(err => {
-            console.error(err);
+    const fetchExtra = async (lat: number, lon: number, initial?: Map<string, ExtraInfo>) => {
+        const data = await getExtraLocations(lat, lon, { language });
+
+        const tempMap = new Map<string, ExtraInfo>(initial ?? []);
+        const latLonMap = new Map<string, string>();
+        const queryLatLons: string[] = [];
+
+        // Dirty way of doing things
+        for (let i = 0; i < data.length; i++) {
+            const location = data[i];
+            const latLon = `${location.lat},${location.lon}`;
+            if (debug) console.log(latLon);
+            queryLatLons.push(latLon);
+            latLonMap.set(latLon, location.displayName);
+        }
+
+        const extras = await getExtraCond(queryLatLons, {
+            language,
+            units
         });
+        for (const [key, value] of Object.entries(extras)) {
+            const displayName = latLonMap.get(key);
+            if (debug) {
+                console.log(key);
+                console.log(displayName, value);
+            }
+            const latLon = key.split(",");
+            tempMap.set(displayName, {
+                details: {
+                    name: displayName,
+                    lat: parseFloat(latLon[0]),
+                    lon: parseFloat(latLon[1])
+                },
+                current: value
+            });
+        }
+
+        setExtraInfo(tempMap);
+    };
+
+    const fetchAlerts = (lat: number, lon: number) => {
+        getAlerts(lat, lon, { language, units }).then(data => {
+            setAlerts(data);
+        }).catch(err => console.error(err));
     };
 
     // Current conditions and alerts handler
@@ -115,13 +191,28 @@ const Display = ({ isReady, winSize, location, language, setMainVol }: DisplayPr
             const lat = locInfo.latitude;
             const lon = locInfo.longitude;
             
-            let intervalTimer: NodeJS.Timeout;
+            let intervalTimer: NodeJS.Timer;
             if (lat && lon) {
-                fetchCurrent(lat, lon);
-                fetchAlerts(lat, lon);
-                intervalTimer = setInterval(() => {
-                    fetchCurrent(lat, lon);
+                const fetchCallback = (data: CurrentCond) => {
+                    const tempMap = new Map<string, ExtraInfo>();
+                    const currentEx = {
+                        details: {
+                            name: locInfo.city,
+                            lat,
+                            lon
+                        },
+                        current: data
+                    };
+                    tempMap.set(locInfo.city, currentEx);
+                    setCurrentExtra(currentEx);
+
+                    fetchExtra(lat, lon, tempMap);
                     fetchAlerts(lat, lon);
+                };
+
+                fetchCurrent(lat, lon).then(fetchCallback).catch(err => console.error(err));
+                intervalTimer = setInterval(() => {
+                    fetchCurrent(lat, lon).then(fetchCallback).catch(err => console.error(err));
                 }, 300000);
             }
 
@@ -130,9 +221,37 @@ const Display = ({ isReady, winSize, location, language, setMainVol }: DisplayPr
     }, [isReady, locInfo.latitude, locInfo.longitude]);
 
     React.useEffect(() => {
+        if (!isReady || !marqueeCities) return;
+        let latLons: string[] = [];
+
+        for (const city of marqueeCities) {
+            latLons.push(`${city.latitude},${city.longitude}`);
+        }
+
+        const ExtraCondCallback = (ret: CurrentConds) => {
+            for (const latLon of latLons) {
+                const cond = ret[latLon];
+                const [lat, lon] = latLon.split(",");
+                const parsedLat = parseFloat(lat);
+                const parsedLon = parseFloat(lon);
+
+                const city = marqueeCities.find(c => c.latitude === parsedLat && c.longitude === parsedLon);
+                if (city) city.observations = cond;
+            }
+        };
+
+        getExtraCond(latLons, { language, units }).then(ExtraCondCallback).catch(err => console.error(err));
+        const interval = setInterval(() => {
+            getExtraCond(latLons, { language, units }).then(ExtraCondCallback).catch(err => console.error(err));
+        }, 300000);
+
+        return () => clearInterval(interval);
+    }, [isReady, marqueeCities]);
+
+    React.useEffect(() => {
         if (alerts.length > 0) {
             setFocusedAlert(alerts[0]);
-            getAlertText(alerts[0].detailKey, language).then(texts => {
+            getAlertText(alerts[0].detailKey, { language }).then(texts => {
                 if (texts.length > 0) {
                     setFocusedAlertText(texts[0].description);
                 }
@@ -141,6 +260,14 @@ const Display = ({ isReady, winSize, location, language, setMainVol }: DisplayPr
             })
         }
     }, [alerts.length]);
+
+    React.useEffect(() => {
+        if (debug) console.log(currentExtra);
+    }, [currentExtra]);
+
+    React.useEffect(() => {
+        if (debug) console.log(extraInfo);
+    }, [extraInfo]);
 
     /*
         <InfoMarquee
@@ -152,7 +279,15 @@ const Display = ({ isReady, winSize, location, language, setMainVol }: DisplayPr
         <div id="main" ref={mainRef} className="relative top-1/2 left-1/2 overflow-hidden w-main h-main">
             <img className="block max-h-full max-w-full" src="/images/template-4k.png" alt="background" />
             <SlideBg />
-            {isReady && <SlidesContainer setMainVol={setMainVol} />}
+            {(isReady && locInfo && currentExtra && extraInfo.size !== 0) && <SlidesContainer
+                debug={debug}
+                setMainVol={setMainVol}
+                locInfo={locInfo}
+                mainCityInfo={currentExtra}
+                extraCityInfo={extraInfo}
+                introLoaded={cityIntroLoaded}
+                setIntroLoaded={setCityIntroLoaded}
+            />}
             {locInfo.timezone !== "" && <DateTime tz={locInfo.timezone} />}
             {locInfo.city !== "" && <div
                 id="city"
@@ -166,12 +301,25 @@ const Display = ({ isReady, winSize, location, language, setMainVol }: DisplayPr
             />
             <LogoArea />
             <InfoMarquee
-                top="Happy Holidays!"
-                bottom="We have currently partnered with Indigo Wireless to offer great wireless service in Tioga County! Go to indigowireless.com or stop in at 100 Main in Wellsboro for more information on this promo. | Save $5.00 a month with easy, painless auto pay system. Sign up Today! | In weeks to come we will be making upgrades to our network to serve your TV experience better! You may experience brief No Signal mesages on your TV. If the message stays on your TV for more than 4 hours please reboot the TV and call us. | Remember that this is all made possible with help from the Weather Ranch Discord Server! | Help from MapGuy11, Goldblaze, and TWCJon! | To stay up to date with all the latest on the emulator join the Discord Server! https://discord.gg/4TpAsRtsAx | NextJs version inspired from https://github.com/buffbears/Weatherscan |"
+                top={{
+                    locations: marqueeCities ?? [],
+                    duration: 4.5
+                }}
+                ticker={{
+                    text: "Happy holidays! | This project is open source: github.com/elementemerald/weatherscan-rewritten | NextJs version inspired from https://github.com/buffbears/Weatherscan |",
+                    duration: 12
+                }}
             />
-            {focusedAlert && <MarqueeSevere
-                top={focusedAlert.eventDescription}
-                bottom={focusedAlertText}
+            {(focusedAlert && focusedAlertText) && <MarqueeSevere
+                top={{
+                    text: focusedAlert.eventDescription
+                }}
+                bottom={{
+                    text: focusedAlertText,
+                    duration: 0.1 * (focusedAlertText.length)
+                }}
+                mute={muteSevere}
+                setMainVol={setMainVol}
             />}
         </div>
     );

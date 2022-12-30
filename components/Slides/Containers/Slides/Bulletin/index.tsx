@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const SlideBulletin = () => (
+const Bulletin = () => (
     <>
         <div id="info-slide_bulletin" className="relative bg-infoslide-color bg-bulletin-image bg-infoslide-pos bg-infoslide-size bg-no-repeat w-full min-h-infoslide max-h-infoslide overflow-hidden flex flex-col hidden">
             <div
@@ -32,4 +32,4 @@ const SlideBulletin = () => (
     </>
 );
 
-export default SlideBulletin;
+export default Bulletin;

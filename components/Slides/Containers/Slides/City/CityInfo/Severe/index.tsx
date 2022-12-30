@@ -1,5 +1,5 @@
 import * as React from "react";
-import FrostPane from "./FrostPane";
+import FrostPane from "../../../FrostPane";
 
 const SlideSevereCityInfo = () => (
     <>

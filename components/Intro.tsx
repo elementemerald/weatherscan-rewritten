@@ -94,7 +94,7 @@ const Intro = ({ winSize, callback }: IntroProps) => {
     }, [intellistarRef]);
 
     return (
-        <div id="intro" ref={mainRef} className="relative top-1/2 left-1/2 overflow-hidden w-main h-main bg-white">
+        <div id="intro" ref={mainRef} className="relative top-1/2 left-1/2 overflow-hidden w-main h-main bg-white z-[999]">
             <div id="blackbar" className="h-[23.5%] w-full absolute bottom-0 bg-[#161418]">
                 <div className="absolute w-[400px] left-[8.05%] top-[4.6%] flex flex-row flex-col">
                     <div className="whitespace-nowrap relative font-frutiger font-semibold text-[#d8c422] text-[31.5px] tracking-[1px] pt-6">headend id:</div>
@@ -110,6 +110,7 @@ const Intro = ({ winSize, callback }: IntroProps) => {
                     <div className="whitespace-nowrap relative font-frutiger font-semibold text-[#d8c422] text-[31.5px] tracking-[1px] pt-6">Save</div>
                 </div>
                 <img className="object-contain absolute w-[500px] h-[175px] right-[1.9%] -top-[9px]" src="/images/weatherlogos.png" alt="weatherscan" />
+                <a target="_blank" rel="noreferrer" href="https://ryand.ca" className="whitespace-nowrap font-frutiger font-semibold text-[#d8c422] text-[31.5px] tracking-[1px] float-right pt-40 pr-[7rem]">Now rewritten!</a>
             </div>
             <div id="appearancesettingspane" className="pt-[200px] hidden">
                 <select name="background" id="background">

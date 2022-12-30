@@ -54,7 +54,9 @@ module.exports = {
         "bulletin-frost-pane": "-72px -329px",
         "severe-city-info-pos": "69% 41.5%",
         "frost-pane": "-72px -329px",
-        "city-info-slide": "69% 41.5%"
+        "frost-pane-detailed-right": "-570px -329px",
+        "city-info-slide": "69% 41.5%",
+        "city-info-extended": "-72px -364px"
       },
       backgroundSize: {
         "conditions-icon": "100% 100%",
@@ -112,6 +114,8 @@ module.exports = {
         "subhead-city-r": "90px",
         "subhead-shadow-t": "50.8%",
         "subhead-shadow-l": "7px",
+        "subhead-title-t": "50.8%",
+        "subhead-title-l": "7px",
         "forecast": "10%",
         "logo-area-t": "83.4%",
         "logo-area-img-t": "19%",
@@ -194,6 +198,7 @@ module.exports = {
         "infoslide-container": "884.5px",
         "gradient": "125px",
         "subhead-shadow": "250%",
+        "subhead-title": "250%",
         "logo-area": "31.528%",
         "logo-area-img": "65%"
       },
@@ -244,9 +249,13 @@ module.exports = {
       },
       translate: {
         "2.5": "2.5px",
+        "6px": "6px",
+        "10px": "10px",
+        "45px": "45px",
         "60px": "60px",
         "42-5": "42.5%",
-        "43-5": "43.5%"
+        "43-5": "43.5%",
+        "47-5": "47.5%"
       },
       scale: {
         "1": "1",
@@ -260,8 +269,10 @@ module.exports = {
         "110": "1.10",
         "112": "1.12",
         "112-5": "1.125",
+        "113-5": "1.135",
         "114-5": "1.145",
         "115": "1.15",
+        "115-5": "1.155",
         "117": "1.17",
         "118": "1.18"
       },

@@ -1,12 +1,24 @@
 import * as React from "react";
+import { useRouter } from "next/router";
 
 interface DateTimeProps {
     tz: string
 }
 
 const DateTime = ({ tz }: DateTimeProps) => {
+    const router = useRouter();
     const [date, setDate] = React.useState<string>("Jan 01");
     const [time, setTime] = React.useState<string>("12:00:00pm");
+
+    const stdTimezoneOffset = (date: Date) => {
+        var jan = new Date(date.getFullYear(), 0, 1);
+        var jul = new Date(date.getFullYear(), 6, 1);
+        return Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+    };
+    
+    const isDstObserved = (date: Date) => {
+        return date.getTimezoneOffset() < stdTimezoneOffset(date);
+    };
 
     const updateTime = () => {
         const date = new Date();
@@ -25,7 +37,7 @@ const DateTime = ({ tz }: DateTimeProps) => {
     };
 
     React.useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: NodeJS.Timer;
 
         if (tz !== "") {
             updateTime();

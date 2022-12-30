@@ -51,8 +51,18 @@
         -webkit-mask-size: 200% 100%;
     }
 
+    .frostpane-mask-header {
+        -webkit-mask-image: url(/images/newbg/frostpane.svg);
+        -webkit-mask-position: -72px -329px;
+        -webkit-mask-size: 1065px 1164px;
+    }
+
     .font-synthesis-weight {
         font-synthesis: weight;
+    }
+
+    .break-word {
+        overflow-wrap: break-word;
     }
 }
 
